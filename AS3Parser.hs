@@ -1,19 +1,21 @@
 module AS3Parser where
 
 import Text.ParserCombinators.Parsec
+import Data.Tree
 import Scanner
+import ASTNode
 
 
 
 parseAS3 :: String -> Either ParseError [String]
 parseAS3 input = parse as3 "(unknown)" input
 
-as3 :: Parser [ String ]
+as3 :: Parser Tree ASTNode
 as3 = 
     do
         whiteSpace
-        toks <- packageDecl
-        return toks
+        package_tree <- packageDecl
+        return ( Node ( ASTNode Root "" ) [ Node package_tree [] ] )
 
 
 -- packageDecl : PACKAGE ( identifier )? packageBlock ;
@@ -22,6 +24,7 @@ packageDecl =
         reserved "package"
         package_name <- packageName
         package_block <- packageBlock
+        return ( Node ( ASTNode Package "package" ) [  ] )
         return ( "package" : ( package_name ++ package_block ) )
 
 
@@ -42,12 +45,10 @@ packageBlock =
 --
 packageBlockEntry = 
     do { toks <- try importDefinition
-       ; return toks
-       }
+       ; return toks }
     <|>  
     do { toks <- try classDefinition
-       ; return toks
-       }
+       ; return toks }
 
 packageNameSeparator = reservedOp "."
 
@@ -56,28 +57,13 @@ packageName =
         segs <- sepBy identifier packageNameSeparator
         return segs
 
-identifiers :: Parser [ String ]
-identifiers =
-    do 
-        ids <- many identifier
-        return ids
-
 -- identifierStar -> ident ( DOT ident )* ( DOT STAR )?
-idStar = 
-    do
-        id <- identifier 
-        more_ids <- moreIds
-        return ( id : more_ids )
-
-moreIds =
-    do { reservedOp "." ; star <- reservedOp "*" ; return ( [ "*" ] ) }
-    <|>
-    do { reservedOp "." ; ids <- idStar ; return ids }
-    <|>
-    do { reservedOp ";" ; return ( [ ";" ] ) }
-
-
-importDefinition = do { reserved "import" ; ids <- idStar ; return ( [ "import" ] ++ ids ) }
+-- Not handling the .* bit as yet.
+importDefinition =
+    do { reserved "import"
+       ; ids <- sepBy1 identifier packageNameSeparator
+       ; reservedOp ";"
+       ; return ( [ "import" ] ++ ids ) }
 
 classDefinition = do { reserved "class" ; return ( [ "class" ] ) }
 
