@@ -10,27 +10,37 @@ semi : SEMI ;
 
 identifierStar : ident ( options {greedy=true; } : DOT ident )* ( DOT STAR )? -> ^( IDENTIFIER_STAR ( ident )+ ( STAR )? ) ;
 
-classDefinition[LinkedListTree annos, LinkedListTree mods] : CLASS ident classExtendsClause implementsClause typeBlock -> ^( CLASS_DEF ident classExtendsClause implementsClause typeBlock ) ;
-as2ClassDefinition[LinkedListTree annos, LinkedListTree mods] : CLASS identifier classExtendsClause implementsClause typeBlock -> ^( CLASS_DEF identifier classExtendsClause implementsClause typeBlock ) ;
-interfaceDefinition[LinkedListTree annos, Tree mods] : INTERFACE ident interfaceExtendsClause typeBlock -> ^( INTERFACE_DEF ident interfaceExtendsClause typeBlock ) ;
-as2InterfaceDefinition[LinkedListTree annos, Tree mods] : INTERFACE identifier interfaceExtendsClause typeBlock -> ^( INTERFACE_DEF identifier interfaceExtendsClause typeBlock ) ;
+classDefinition: classDeclMod CLASS ident classExtendsClause implementsClause typeBlock 
+
+classDeclMod : PUBLIC | FINAL | INTERNAL | DYNAMIC
+
 classExtendsClause : ( EXTENDS identifier )? ;
-interfaceExtendsClause : ( EXTENDS identifier ( COMMA identifier )* )? ;
+
 implementsClause : ( IMPLEMENTS identifier ( COMMA identifier )* )? ;
+
 typeBlock : LCURLY ( typeBlockEntry )* RCURLY -> ^( TYPE_BLOCK ( typeBlockEntry )* ) ;
-typeBlockEntry : (a= annotations m= modifiers ( variableDefinition[$a.tree,$m.tree] | methodDefinition[$a.tree,$m.tree] ) | importDefinition | as2IncludeDirective );
-as2IncludeDirective : INCLUDE_DIRECTIVE STRING_LITERAL ;
+typeBlockEntry : variableDefinition
+               | methodDefinition
+               | importDefinition
+
+variableDefinition : varOrConst variableDeclarator ( COMMA variableDeclarator )* semi
+varOrConst : ( VAR | CONST );
+variableDeclarator : ident ( typeExpression )? ( variableInitializer )? ;
+typeExpression : COLON ( identifier | VOID | STAR )
+declaration : varOrConst variableDeclarator declarationTail ;
+declarationTail : ( COMMA variableDeclarator )* ;
+
+-->
+
+interfaceDefinition[LinkedListTree annos, Tree mods] : INTERFACE ident interfaceExtendsClause typeBlock -> ^( INTERFACE_DEF ident interfaceExtendsClause typeBlock ) ;
+interfaceExtendsClause : ( EXTENDS identifier ( COMMA identifier )* )? ;
 includeDirective : 'include' STRING_LITERAL semi ;
 methodDefinition[LinkedListTree annos, Tree mods] : FUNCTION r= optionalAccessorRole ident parameterDeclarationList ( typeExpression )? ( block | semi ) -> ^( METHOD_DEF optionalAccessorRole ident parameterDeclarationList ( typeExpression )? ( block )? ) ;
 optionalAccessorRole : ( accessorRole )? -> ^( ACCESSOR_ROLE ( accessorRole )? ) ;
 accessorRole : ( GET | SET );
 namespaceDefinition[LinkedListTree annos, Tree mods] : NAMESPACE ident -> ^( NAMESPACE_DEF NAMESPACE ident ) ;
 useNamespaceDirective : USE NAMESPACE ident semi ;
-variableDefinition[LinkedListTree annos, Tree mods] : decl= varOrConst variableDeclarator ( COMMA variableDeclarator )* semi -> ^( VAR_DEF $decl ( variableDeclarator )+ ) ;
-varOrConst : ( VAR | CONST );
-variableDeclarator : ident ( typeExpression )? ( variableInitializer )? ;
-declaration : varOrConst variableDeclarator declarationTail ;
-declarationTail : ( COMMA variableDeclarator )* ;
+
 variableInitializer : ASSIGN assignmentExpression ;
 parameterDeclarationList : LPAREN ( parameterDeclaration ( COMMA parameterDeclaration )* )? RPAREN -> ^( PARAMS ( parameterDeclaration )* ) ;
 parameterDeclaration : ( basicParameterDeclaration | parameterRestDeclaration );
@@ -71,7 +81,6 @@ whileStatement : WHILE condition statement ;
 doWhileStatement : DO statement WHILE condition semi ;
 withStatement : WITH condition statement ;
 defaultXMLNamespaceStatement : DEFAULT XML NAMESPACE ASSIGN expression semi -> ^( DEFAULT_XML_NAMESPACE expression ) ;
-typeExpression : c= COLON ( identifier | VOID | STAR ) -> ^( TYPE_SPEC[$c] ( identifier )? ( VOID )? ( STAR )? ) ;
 identifier : ( qualifiedIdent -> qualifiedIdent ) ( options {greedy=true; } : poi= propOrIdent[root_0, retval.start] -> $poi)* -> ^( IDENTIFIER $identifier) ;
 propertyIdentifier : ( STAR | ident );
 qualifier : ( propertyIdentifier | reservedNamespace ) ;
